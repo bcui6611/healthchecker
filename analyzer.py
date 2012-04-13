@@ -16,6 +16,9 @@ class StatsAnalyzer:
                 if counter['type'] == 'SQL':
                     result = self.accessor.execute(counter['code'])
                     print counter["description"], ":", result[0]
+                elif counter['type'] == 'pythonSQL':
+                    result = eval("cluster_stats.{0}().run(self.accessor)".format(counter['code']))
+                    print counter["description"], ": ", result
                 elif counter['type'] == 'python':
                     result = eval("cluster_stats.{0}().run(counter)".format(counter['code']))
                     print counter["description"], ": ", result
@@ -25,6 +28,9 @@ class StatsAnalyzer:
                 if counter['type'] == 'SQL':
                     result = self.accessor.execute(counter['code'])
                     print counter["description"], ":", result[0]
+                elif counter['type'] == 'pythonSQL':
+                    result = eval("cluster_stats.{0}().run(self.accessor)".format(counter['code']))
+                    print counter["description"], ": ", result
                 elif counter['type'] == 'python':
                     result = eval("diskqueue_stats.{0}().run(counter)".format(counter['code']))
                     print counter["description"], ": ", result

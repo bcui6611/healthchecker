@@ -121,7 +121,7 @@ ClusterCapsule = [
      "ingredients" : [
         {
             "description" : "DGM Ratio",
-            "type" : "SQL",
+            "type" : "pythonSQL",
             "code" : "DGMRatio"
         },
      ]
@@ -130,7 +130,7 @@ ClusterCapsule = [
      "ingredients" : [
         {
             "description" : " A/R Ratio",
-            "type" : "python",
+            "type" : "pythonSQL",
             "code" : "ARRatio"
         },
      ]
