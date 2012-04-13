@@ -229,8 +229,8 @@ class DbAccesor:
         #print "op/sample", json["op"]["samples"]
         #print "op/sample/cmd_get", json["op"]["samples"]["cmd_get"]
         samples = json["op"]["samples"]
-        #for sample in samples.keys():
-        #    print sample
+        for sample in samples.keys():
+            print "-->",sample
         total_samples = json["op"]["samplesCount"]
         get_avg = sum(json["op"]["samples"]["cmd_get"]) / total_samples
         set_avg = sum(json["op"]["samples"]["cmd_set"]) / total_samples

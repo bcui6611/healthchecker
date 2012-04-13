@@ -8,24 +8,13 @@ import restclient
 rest_cmds = {
     'bucket-list': '/pools/default/buckets',
     'bucket-stats': '/pools/default/buckets/{0}/stats?zoom=hour',
-    'bucket-node-stats': '/pools/default/buckets/{0}/stats/{1}?zoom=day'
+    'bucket-node-stats': '/pools/default/buckets/{0}/stats/{1}?zoom={2}'
     }
 methods = {
     'bucket-list': 'GET',
     'bucket-stats': 'GET',
     'bucket-node-stats': 'GET',
     }
-
-stats = [
-    'cmd_get',
-    'cmd_set',
-    'delete_hits',
-    'ep_tap_total_total_backlog_size',
-    'curr_items',
-    'curr_items_tot',
-    'disk_write_queue',
-    'curr_connections',
-    ]
 
 class Buckets:
     def __init__(self):
@@ -96,10 +85,11 @@ class BucketStats:
         return rest.getJson(data)
 
 class BucketNodeStats:
-    def __init__(self, bucket_name, stat_name):
+    def __init__(self, bucket_name, stat_name, scale):
         self.debug = False
-        self.rest_cmd = rest_cmds['bucket-node-stats'].format(bucket_name, stat_name)
+        self.rest_cmd = rest_cmds['bucket-node-stats'].format(bucket_name, stat_name, scale)
         self.method = 'GET'
+        #print self.rest_cmd
 
     def runCmd(self, cmd, server, port,
                user, password, opts):

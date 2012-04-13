@@ -4,9 +4,12 @@
 import getopt
 import sys
 import os
+import traceback
+import copy
 
 import dbaccessor
 import analyzer
+import stats_buffer
 
 import listservers
 import buckets
@@ -50,8 +53,9 @@ def get_stats(mc, stats):
             for key, val in node_stats.items():
                 stats[key] = val
     except Exception, err:
-        print "ERROR: command: %s: %s:%d, %s" % ('stats all', server, port, err)
-        sys.exit(1)
+        #print "ERROR: command: %s: %s:%d, %s" % ('stats all', server, port, err)
+        traceback.print_exc()
+        #sys.exit(1)
     
     try:
         node_stats = mc.stats('tap')
@@ -59,8 +63,9 @@ def get_stats(mc, stats):
             for key, val in node_stats.items():
                 stats[key] = val
     except Exception, err:
-        print "ERROR: command: %s: %s:%d, %s" % ('stats tap', server, port, err)
-        sys.exit(1)
+        #print "ERROR: command: %s: %s:%d, %s" % ('stats tap', server, port, err)
+        traceback.print_exc()
+        #sys.exit(1)
 
 def stats_formatter(stats, prefix=" ", cmp=None):
     if stats:
@@ -108,13 +113,14 @@ def collect_data():
             if node['status'] == 'healthy':
                 node_info = c.runCmd(cmd, node_server, node_port, user, password, opts)
                 accessor.process_node_stats(nodeid, node_info)
-                stats = {}
-                mc = mc_bin_client.MemcachedClient(node_server, node['ports']['direct'])
-                get_stats(mc, stats)
+                #stats = {}
+                #mc = mc_bin_client.MemcachedClient(node_server, node['ports']['direct'])
+                #get_stats(mc, stats)
             else:
                 print "Unhealthy node: %s:%s" %(node_server, node['status'])
     except Exception, err:
-        print "ERROR: command: %s: %s:%d, %s" % (cmd, server, port, err)
+        traceback.print_exc()
+        #print "ERROR: command: %s: %s:%d, %s" % (cmd, server, port, err)
         sys.exit(1)
 
     #get each bucket information
@@ -126,22 +132,23 @@ def collect_data():
             (bucket_name, bucket_id) = accessor.process_bucket(bucket)
 
             # get bucket related stats
-            #cmd = 'bucket-stats'
-            #c = buckets.BucketStats(bucket_name)
-            #json = c.runCmd(cmd, server, port, user, password, opts)
-            #accessor.process_bucket_stats(bucket_id, json)
+            cmd = 'bucket-stats'
+            c = buckets.BucketStats(bucket_name)
+            json = c.runCmd(cmd, server, port, user, password, opts)
+            stats_buffer.buckets_summary[bucket_name] = json
 
             #retrieve bucket stats per node
+            stats_buffer.buckets[bucket_name] = copy.deepcopy(stats_buffer.stats)
             cmd = 'bucket-node-stats'
-            for stat in buckets.stats:
-                c = buckets.BucketNodeStats(bucket_name, stat)
-                print stat, server
-                json = c.runCmd(cmd, server, port, user, password, opts)
-                print simplejson.dumps(json, sort_keys=False, indent=2)
-                accessor.process_bucket_node_stats(bucket_id, server, stat, json)
-        #print simplejson.dumps(json, sort_keys=False, indent=2)
+            for scale, stat_set in stats_buffer.buckets[bucket_name].iteritems():
+                for stat in stat_set.iterkeys():
+                    c = buckets.BucketNodeStats(bucket_name, stat, scale)
+                    json = c.runCmd(cmd, server, port, user, password, opts)
+                    stats_buffer.buckets[bucket_name][scale][stat] = json
+                #accessor.process_bucket_node_stats(bucket_id, server, stat, json)
     except Exception, err:
-        print "ERROR: command: %s: %s:%d, %s" % (cmd, server, port, err)
+        traceback.print_exc()
+        #print "ERROR: command: %s: %s:%d, %s" % (cmd, server, port, err)
         sys.exit(1)
     
     accessor.close()

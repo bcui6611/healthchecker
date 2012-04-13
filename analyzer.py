@@ -8,9 +8,8 @@ class StatsAnalyzer:
 
     def run_analysis(self):
         self.accessor.connect_db()
-        self.accessor.browse_db()
+        #self.accessor.browse_db()
 
-        #print cluster_stats.ClusterCapsule
         for pill in cluster_stats.ClusterCapsule:
             #print pill['name']
             for counter in pill['ingredients']:
@@ -18,7 +17,16 @@ class StatsAnalyzer:
                     result = self.accessor.execute(counter['code'])
                     print counter["description"], ":", result[0]
                 elif counter['type'] == 'python':
-                    result = eval("cluster_stats.{0}().run(self.accessor)".format(counter['code']))
+                    result = eval("cluster_stats.{0}().run(counter)".format(counter['code']))
+                    print counter["description"], ": ", result
+
+        for pill in diskqueue_stats.DiskQueueCapsule:
+           for counter in pill['ingredients']:
+                if counter['type'] == 'SQL':
+                    result = self.accessor.execute(counter['code'])
+                    print counter["description"], ":", result[0]
+                elif counter['type'] == 'python':
+                    result = eval("diskqueue_stats.{0}().run(counter)".format(counter['code']))
                     print counter["description"], ": ", result
 
         self.accessor.close()
