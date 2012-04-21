@@ -33,10 +33,13 @@ class DbAccesor:
                 status TEXT,
                 portDirect INTEGER,
                 portProxy INTEGER,
-                clusterMembership INTEGER,
+                clusterMembership TEXT,
                 os TEXT,
                 uptime INTEGER,
-                version TEXT)""")
+                version TEXT,
+                master TEXT)""")
+        self.cursor.execute(""" CREATE UNIQUE INDEX IF NOT EXISTS server_idx on 
+                ServerNode(host, port, master) """)
 
         self.cursor.execute(""" CREATE TABLE IF NOT EXISTS DiskInfo (
                 diskInfoId INTEGER PRIMARY KEY,
@@ -85,8 +88,11 @@ class DbAccesor:
                 authType TEXT,
                 saslPassword TEXT,
                 numReplica INTEGER,
-                ramQuota REAL)""")
-    
+                ramQuota REAL,
+                master TEXT)""")
+        self.cursor.execute(""" CREATE UNIQUE INDEX IF NOT EXISTS bucket_idx on 
+                Bucket(name, master) """)
+                
         self.cursor.execute(""" CREATE TABLE IF NOT EXISTS BucketStats (
                 id INTEGER PRIMARY KEY,
                 diskUsed REAL,
@@ -109,10 +115,10 @@ class DbAccesor:
                 timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(bucketId) REFERENCES Bucket(bucketId))""")
 
-    def create_or_update_node(self, host, port, status):
-        sqlstmt = """INSERT OR REPLACE INTO ServerNode (host,port,status) 
-                 VALUES( '{0}', {1}, '{2}' )"""
-        self.cursor.execute(sqlstmt.format(host, port, status))
+    def create_or_update_node(self, host, port, status, master):
+        sqlstmt = """INSERT OR REPLACE INTO ServerNode (host,port,status, master) 
+                 VALUES( '{0}', {1}, '{2}', '{3}' )"""
+        self.cursor.execute(sqlstmt.format(host, port, status, master))
         return self.cursor.lastrowid
 
     def process_node_stats(self, nodeId, nodeInfo):
@@ -146,6 +152,7 @@ class DbAccesor:
             VALUES('{0}', {1}, {2}, {3}, {4}, {5}, {6})"""
 
         if nodeInfo['storageTotals'] is not None:
+            print nodeInfo
             hdd = nodeInfo['storageTotals']['hdd']
             if hdd is not None:
                 self.cursor.execute(sqlstmt.format('hdd',
@@ -196,16 +203,17 @@ class DbAccesor:
 
         return True
 
-    def process_bucket(self, bucket):
+    def process_bucket(self, bucket, master):
         sqlstmt = """INSERT OR REPLACE INTO Bucket 
-                    (name, type, authType, saslPassword, numReplica, ramQuota) 
-                    VALUES('{0}', '{1}', '{2}', '{3}', {4}, {5})"""
+                    (name, type, authType, saslPassword, numReplica, ramQuota, master) 
+                    VALUES('{0}', '{1}', '{2}', '{3}', {4}, {5}, '{6}')"""
         self.cursor.execute(sqlstmt.format(bucket['name'],
                     bucket['bucketType'],
                     bucket['authType'],
                     bucket['saslPassword'],
                     bucket['replicaNumber'],
-                    bucket['quota']['ram']))
+                    bucket['quota']['ram'],
+                    master))
         bucketId = self.cursor.lastrowid
 
         sqlstmt = """INSERT INTO BucketStats 
@@ -256,18 +264,22 @@ class DbAccesor:
         #print get_avg, set_avg, del_avg, disk_write_queue_avg
         #self.cursor.execute(sqlstmt.format(get_avg, set_avg, del_avg, disk_write_queue_avg, bucket_id))
 
-    def extract_result(self, rows):
+    def extract_result(self, rows, multi_row):
         if rows is not None:
-            for row in rows:
-                return row
+            if multi_row:
+                return rows
+            else:
+                for row in rows:
+                    return row
         else:
             return [0]
 
-    def execute(self, stmt):
+    def execute(self, stmt, multi_row=False):
         self.cursor.execute(stmt)
-        return self.extract_result(self.cursor.fetchall())
+        return self.extract_result(self.cursor.fetchall(), multi_row)
 
     def browse_table(self, table):
+        print "TABLE:", table
         stmt = "SELECT * from {0}"
         self.cursor.execute(stmt.format(table))
         rows = self.cursor.fetchall()
@@ -281,4 +293,4 @@ class DbAccesor:
         self.browse_table("SystemStats")
         self.browse_table("Bucket")
         self.browse_table("BucketStats")
-        self.browse_table("BucketOps")
+        #self.browse_table("BucketOps")
