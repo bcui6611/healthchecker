@@ -5,17 +5,18 @@ counter_name = 'disk_write_queue'
 
 class AvgDiskQueue:
     def run(self, accessor):
-        disk_queue_avg = []
-
+        result = {}
         for bucket, stats_info in stats_buffer.buckets.iteritems():
             #print bucket, stats_info
+            disk_queue_avg = []
             values = stats_info[accessor["scale"]][accessor["counter"]]
             nodeStats = values["nodeStats"]
             samplesCount = values["samplesCount"]
             for node, vals in nodeStats.iteritems():
                 avg = sum(vals) / samplesCount
-                disk_queue_avg.append((bucket, node, avg))
-        return disk_queue_avg
+                disk_queue_avg.append((node, avg))
+            result[bucket] = disk_queue_avg
+        return result
 
     def action(self, values, thresholds):
         flags = []
@@ -30,8 +31,9 @@ class AvgDiskQueue:
 
 class DiskQueueTrend:
     def run(self, accessor):
-        trend = []
+        result = {}
         for bucket, stats_info in stats_buffer.buckets.iteritems():
+            trend = []
             values = stats_info[accessor["scale"]][accessor["counter"]]
             timestamps = values["timestamp"]
             timestamps = [x - timestamps[0] for x in timestamps]
@@ -39,13 +41,15 @@ class DiskQueueTrend:
             samplesCount = values["samplesCount"]
             for node, vals in nodeStats.iteritems():
                 a, b = util.linreg(timestamps, vals)
-                trend.append((bucket, node, a, b))
-        return trend
+                trend.append((node, a))
+            result[bucket] = trend
+        return result
 
 class TapQueueTrend:
     def run(self, accessor):
-        trend = []
+        result = {}
         for bucket, stats_info in stats_buffer.buckets.iteritems():
+            trend = []
             values = stats_info[accessor["scale"]][accessor["counter"]]
             timestamps = values["timestamp"]
             timestamps = [x - timestamps[0] for x in timestamps]
@@ -53,8 +57,9 @@ class TapQueueTrend:
             samplesCount = values["samplesCount"]
             for node, vals in nodeStats.iteritems():
                 a, b = util.linreg(timestamps, vals)
-                trend.append((bucket, node, a, b))
-        return trend
+                trend.append((node, a))
+            result[bucket] = trend
+        return result
 
 DiskQueueCapsule = [
     {"name" : "Disk Queue Diagnosis",

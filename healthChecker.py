@@ -10,6 +10,7 @@ import copy
 import dbaccessor
 import analyzer
 import stats_buffer
+import util
 
 import listservers
 import buckets
@@ -18,6 +19,8 @@ import info
 import util_cli as util
 import mc_bin_client
 import simplejson
+
+import node_map
 
 def parse_opt():
     (cluster, user, password) = ('', '','')
@@ -108,8 +111,9 @@ def collect_data():
         c = commands[cmd]()
         for node in nodes:
             (node_server, node_port) = util.hostport(node['hostname'])
-            nodeid = accessor.create_or_update_node(node_server, node_port, node['status'])
-
+            if node_map.address_map.has_key(node_server):
+                node_server = node_map.address_map[node_server]
+            nodeid = accessor.create_or_update_node(node_server, node_port, node['status'], server)
             if node['status'] == 'healthy':
                 node_info = c.runCmd(cmd, node_server, node_port, user, password, opts)
                 accessor.process_node_stats(nodeid, node_info)
@@ -129,7 +133,7 @@ def collect_data():
         c = commands[cmd]()
         json = c.runCmd(cmd, server, port, user, password, opts)
         for bucket in json:
-            (bucket_name, bucket_id) = accessor.process_bucket(bucket)
+            (bucket_name, bucket_id) = accessor.process_bucket(bucket, server)
 
             # get bucket related stats
             cmd = 'bucket-stats'
@@ -142,6 +146,7 @@ def collect_data():
             cmd = 'bucket-node-stats'
             for scale, stat_set in stats_buffer.buckets[bucket_name].iteritems():
                 for stat in stat_set.iterkeys():
+                    print "retieving: ", stat, " scale:", scale
                     c = buckets.BucketNodeStats(bucket_name, stat, scale)
                     json = c.runCmd(cmd, server, port, user, password, opts)
                     stats_buffer.buckets[bucket_name][scale][stat] = json
@@ -153,7 +158,6 @@ def collect_data():
     
     accessor.close()
 
-
 def main():
     
     #make snapshot for the current cluster status
@@ -162,6 +166,7 @@ def main():
     #analyze the snapshot and historic data
     performer = analyzer.StatsAnalyzer()
     performer.run_analysis()
-    
+    performer.run_report()
+
 if __name__ == '__main__':
     main()

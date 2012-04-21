@@ -33,16 +33,9 @@ class ListServers:
                             self.port,
                             self.user,
                             self.password)
-        if (self.output == 'json'):
-            print data
-        else:
-            # obtain dict of nodes. If not dict, is error message
-            nodes = self.getNodes(data)
-            if type(nodes) == type(list()):
-                self.printNodes(nodes)
-            else:
-                print self.error
-            return nodes
+
+        # obtain dict of nodes. If not dict, is error message
+        return self.getNodes(data)
 
     def getData(self, server, port, user, password):
         """

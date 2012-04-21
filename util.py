@@ -1,3 +1,4 @@
+import json
 from math import sqrt
 
 def linreg(X, Y):
@@ -18,8 +19,17 @@ def linreg(X, Y):
         Syy = Syy + y*y
         Sxy = Sxy + x*y
     det = Sxx * N - Sx * Sx
-    a, b = (Sxy * N - Sy * Sx)/det, (Sxx * Sy - Sx * Sxy)/det
-    return a, b
+    if det == 0:
+        return 0, 0
+    else:
+        a, b = (Sxy * N - Sy * Sx)/det, (Sxx * Sy - Sx * Sxy)/det
+        return a, b
+
+def pretty_float(number, precision=2):
+    return '%.*f' % (precision, number)
+
+def pretty_print(obj):
+    print json.dumps(obj, indent=4)
 
 def humanize_bytes(bytes, precision=1):
     """Return a humanized string representation of a number of bytes.

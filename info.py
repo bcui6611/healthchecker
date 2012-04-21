@@ -32,5 +32,5 @@ class Info:
         for x in ['license', 'licenseValid', 'licenseValidUntil']:
             if x in json:
                 del(json[x])
-        print simplejson.dumps(json, sort_keys=True, indent=2)
+        #print simplejson.dumps(json, sort_keys=True, indent=2)
         return json

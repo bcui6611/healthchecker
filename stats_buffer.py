@@ -3,7 +3,6 @@ buckets_summary = {}
 stats_summary = {
     'vb_active_num' : {},
     'vb_replica_num' : {},
-    'curr_connections' : {},
 }
 
 buckets = {}
@@ -13,13 +12,17 @@ stats = {
         'cmd_get' : {},
         'cmd_set' : {},
         'delete_hits' : {},
-        #'curr_items_tot' : {},
-        #'curr_connections' : {},
+        'curr_items' : {},
+        'vb_replica_curr_items' : {},
+        'curr_connections' : {},
     }, 
     "hour" : {
         'disk_write_queue' : {},
         'ep_cache_miss_rate' : {},
         'ep_tap_total_total_backlog_size' : { },
+        'ep_oom_errors' : {},
+        'ep_tmp_oom_errors' : {},
+        'ep_overhead' : {},
     }, 
     "day" : {
         'curr_items' : {},
