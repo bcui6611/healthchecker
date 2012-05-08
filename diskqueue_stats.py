@@ -8,32 +8,29 @@ class AvgDiskQueue:
         result = {}
         for bucket, stats_info in stats_buffer.buckets.iteritems():
             #print bucket, stats_info
-            disk_queue_avg = []
+            disk_queue_avg_error = []
+            dsik_queue_avg_warn = []
             values = stats_info[accessor["scale"]][accessor["counter"]]
             nodeStats = values["nodeStats"]
             samplesCount = values["samplesCount"]
             for node, vals in nodeStats.iteritems():
                 avg = sum(vals) / samplesCount
-                disk_queue_avg.append((node, avg))
-            result[bucket] = disk_queue_avg
+                if avg > accessor["threshold"]["high"]:
+                    disk_queue_avg_error.append({"node":node, "level":"red", "value":avg})
+                elif avg > accessor["threshold"]["low"]:
+                    dsik_queue_avg_warn.append({"node":node, "level":"yellow", "value":avg})
+            if len(disk_queue_avg_error) > 0:
+                result[bucket] = {"error" : disk_queue_avg_error}
+            if len(dsik_queue_avg_warn) > 0:
+                result[bucket] = {"warn" : disk_queue_avg_warn}
         return result
-
-    def action(self, values, thresholds):
-        flags = []
-        for bucket, node, avg in values:
-            if avg < thresholds["low"]:
-                flags.append((bucket, node, "green"))
-            elif avg >= thresholds["low"] and avg < thresholds["high"]:
-                flags.append((bucket, node, "yellow"))
-            else:
-                flags.append((bucket, node, "red"))
-        return flags
 
 class DiskQueueTrend:
     def run(self, accessor):
         result = {}
         for bucket, stats_info in stats_buffer.buckets.iteritems():
-            trend = []
+            trend_error = []
+            trend_warn = []
             values = stats_info[accessor["scale"]][accessor["counter"]]
             timestamps = values["timestamp"]
             timestamps = [x - timestamps[0] for x in timestamps]
@@ -41,15 +38,22 @@ class DiskQueueTrend:
             samplesCount = values["samplesCount"]
             for node, vals in nodeStats.iteritems():
                 a, b = util.linreg(timestamps, vals)
-                trend.append((node, a))
-            result[bucket] = trend
+                if a > accessor["threshold"]["high"]:
+                    trend_error.append({"node":node, "level":"red", "value":a})
+                elif a > accessor["threshold"]["low"]:
+                    trend_warn.append({"node":node, "level":"yellow", "value":a})
+            if len(trend_error) > 0:
+                result[bucket] = {"error" : trend_error}
+            if len(trend_warn) > 0:
+                result[bucket] = {"warn" : trend_warn}
         return result
 
 class TapQueueTrend:
     def run(self, accessor):
         result = {}
         for bucket, stats_info in stats_buffer.buckets.iteritems():
-            trend = []
+            trend_error = []
+            trend_warn = []
             values = stats_info[accessor["scale"]][accessor["counter"]]
             timestamps = values["timestamp"]
             timestamps = [x - timestamps[0] for x in timestamps]
@@ -57,15 +61,23 @@ class TapQueueTrend:
             samplesCount = values["samplesCount"]
             for node, vals in nodeStats.iteritems():
                 a, b = util.linreg(timestamps, vals)
-                trend.append((node, a))
-            result[bucket] = trend
+                if a > accessor["threshold"]["high"]:
+                    trend_error.append({"node":node, "level":"red", "value":a})
+                elif a > accessor["threshold"]["low"]:
+                    trend_warn.append({"node":node, "level":"yellow", "value":a})
+            if len(trend_error) > 0:
+                result[bucket] = {"error" : trend_error}
+            if len(trend_warn) > 0:
+                result[bucket] = {"warn" : trend_warn}
         return result
 
 DiskQueueCapsule = [
-    {"name" : "Disk Queue Diagnosis",
+    {"name" : "DiskQueueDiagnosis",
+     "description" : "",
      "ingredients" : [
         {
-            "description" : "Avg Disk queue length",
+            "name" : "avgDiskQueueLength",
+            "description" : "Persistence severely behind - averge disk queue length is above threshold",
             "counter" : "disk_write_queue",
             "pernode" : True,
             "scale" : "minute",
@@ -75,27 +87,39 @@ DiskQueueCapsule = [
                 "low" : 50000000,
                 "high" : 1000000000
             },
-        },
+        },     
         {
-            "description" : "Disk queue trend",
+            "name" : "diskQueueTrend",
+            "description" : "Persistence severely behind - disk write queue continues growing",
             "counter" : "disk_write_queue",
             "pernode" : True,
             "scale" : "hour",
             "type" : "python",
             "code" : "DiskQueueTrend",
+            "threshold" : {
+                "low" : 0,
+                "high" : 0.25
+            },
         },
-     ]
+     ],
+     "indicator" : True,
     },
-    {"name" : "Replication trend",
+    {"name" : "ReplicationTrend",
      "ingredients" : [
         {
-            "description" : "Replication Trend",
+            "name" : "replicationTrend",
+            "description" : "Replication severely behind - ",
             "counter" : "ep_tap_total_total_backlog_size",
             "pernode" : True,
             "scale" : "hour",
             "type" : "python",
             "code" : "TapQueueTrend",
+            "threshold" : {
+                "low" : 0,
+                "high" : 0.2
+            },
         }
-     ]
+     ],
+     "indicator" : True,
     },
 ]

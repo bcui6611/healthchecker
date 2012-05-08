@@ -146,7 +146,7 @@ def collect_data():
             cmd = 'bucket-node-stats'
             for scale, stat_set in stats_buffer.buckets[bucket_name].iteritems():
                 for stat in stat_set.iterkeys():
-                    print "retieving: ", stat, " scale:", scale
+                    #print "retieving: ", stat, " scale:", scale
                     c = buckets.BucketNodeStats(bucket_name, stat, scale)
                     json = c.runCmd(cmd, server, port, user, password, opts)
                     stats_buffer.buckets[bucket_name][scale][stat] = json

@@ -152,7 +152,7 @@ class DbAccesor:
             VALUES('{0}', {1}, {2}, {3}, {4}, {5}, {6})"""
 
         if nodeInfo['storageTotals'] is not None:
-            print nodeInfo
+            #print nodeInfo
             hdd = nodeInfo['storageTotals']['hdd']
             if hdd is not None:
                 self.cursor.execute(sqlstmt.format('hdd',

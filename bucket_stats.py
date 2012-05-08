@@ -1,7 +1,7 @@
 import dbaccessor
 import stats_buffer
 import util
-
+ 
 class OpsRatio:
     def run(self, accessor):        
         ops_avg = {
@@ -105,7 +105,18 @@ class NumVbuckt:
         return trend
 
 BucketCapsule = [
-   {"name" : "Cache Miss Ratio",
+    {"name" : "bucketList",
+     "ingredients" : [
+        {
+            "name" : "bucketList",
+            "description" : "Bucket list",
+            "type" : "pythonSQL",
+            "code" : "BucketList",
+        },
+     ],
+     "perBucket" : True,
+    },
+    {"name" : "CacheMissRatio",
      "ingredients" : [
         {
             "description" : "Cache miss ratio",

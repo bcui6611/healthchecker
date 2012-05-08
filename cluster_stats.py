@@ -7,10 +7,6 @@ class ExecSQL:
         result = accessor.execute(stmt)
         return result[0]
 
-class NodeList:
-    def run(self, accessor):
-        return accessor.execute("SELECT host, port, version, os, status FROM ServerNode", True)
-
 class DGMRatio:
     def run(self, accessor):
         hdd = accessor.execute("SELECT sum(usedbyData) FROM StorageInfo WHERE type='hdd'")
@@ -147,52 +143,18 @@ class AvgItemSize:
 
 class NumVbuckt:
     def run(self, accessor):
-        trend = []
+        result = {}
         for bucket, stats_info in stats_buffer.buckets_summary.iteritems():
             total, values = stats_buffer.retrieveSummaryStats(bucket, accessor["counter"])
-            trend.append((bucket, values[-1]))
-        return trend
+            if values[-1] < accessor["threshold"]:
+                result[bucket] = values[-1]
+        return result
 
 ClusterCapsule = [
-    {"name" : "Node Status",
+    {"name" : "TotalDataSize",
      "ingredients" : [
         {
-            "description" : "Node list",
-            "type" : "pythonSQL",
-            "code" : "NodeList",
-        },
-        {
-            "description" : "Number of Nodes",
-            "type" : "SQL",
-            "stmt" : "SELECT count(*) FROM ServerNode",
-            "code" : "ExecSQL",
-        },
-        {
-            "description" : "Number of Down Nodes",
-            "type" : "SQL",
-            "stmt" : "SELECT count(*) FROM ServerNode WHERE status='down'",
-            "code" : "ExecSQL",
-        },
-        {
-            "description" : "Number of Warmup Nodes",
-            "type" : "SQL",
-            "stmt" : "SELECT count(*) FROM ServerNode WHERE status='warmup'",
-            "code" : "ExecSQL",
-        },
-        {
-            "description" : "Number of Nodes failed over",
-            "type" : "SQL",
-            "stmt" : "SELECT count(*) FROM ServerNode WHERE clusterMembership != 'active'",
-            "code" : "ExecSQL",
-        },
-      ],
-      "clusterwise" : True,
-      "perNode" : False,
-      "perBucket" : False,
-    },
-    {"name" : "Total Data Size",
-     "ingredients" : [
-        {
+            "name" : "totalDataSize",
             "description" : "Total Data Size across cluster",
             "type" : "SQL",
             "stmt" : "SELECT sum(usedbyData) FROM StorageInfo WHERE type='hdd'",
@@ -204,9 +166,10 @@ ClusterCapsule = [
      "perNode" : False,
      "perBucket" : False,
     },
-    {"name" : "Available disk space",
+    {"name" : "AvailableDiskSpace",
      "ingredients" : [
         {
+            "name" : "availableDiskSpace",
             "description" : "Available disk space",
             "type" : "SQL",
             "stmt" : "SELECT sum(free) FROM StorageInfo WHERE type='hdd'",
@@ -218,24 +181,28 @@ ClusterCapsule = [
      "perNode" : False,
      "perBucket" : False,
     },
-   {"name" : "Cache Miss Ratio",
+   {"name" : "CacheMissRatio",
      "ingredients" : [
         {
+            "name" : "cacheMissRatio",
             "description" : "Cache miss ratio",
             "counter" : "ep_cache_miss_rate",
             "type" : "python",
             "scale" : "hour",
             "code" : "CacheMissRatio",
             "unit" : "percentage",
+            "threshold" : 2,
         },
      ],
      "clusterwise" : True,
      "perNode" : True,
      "perBucket" : True,
+     "indicator" : False,
     },
     {"name" : "DGM",
      "ingredients" : [
         {
+            "name" : "dgm",
             "description" : "Disk to Memory Ratio",
             "type" : "pythonSQL",
             "code" : "DGMRatio"
@@ -245,9 +212,10 @@ ClusterCapsule = [
      "perNode" : False,
      "perBucket" : False,
     },
-    {"name" : "Active / Replica Resident Ratio",
+    {"name" : "ActiveReplicaResidentRatio",
      "ingredients" : [
         {
+            "name" : "activeReplicaResidencyRatio",
             "description" : "Active and Replica Residentcy Ratio",
             "type" : "python",
             "counter" : ["curr_items", "vb_replica_curr_items"],
@@ -259,9 +227,10 @@ ClusterCapsule = [
      "perNode" : True,
      "perBucket" : True,
     },
-    {"name" : "OPS performance",
+    {"name" : "OPSPerformance",
      "ingredients" : [
         {
+            "name" : "opsPerformance",
             "description" : "Read/Write/Delete ops ratio",
             "type" : "python",
             "scale" : "minute",
@@ -270,9 +239,10 @@ ClusterCapsule = [
         },
      ]
     },
-    {"name" : "Growth Rate",
+    {"name" : "GrowthRate",
      "ingredients" : [
         {
+            "name" : "dataGrowthRateForItems",
             "description" : "Data Growth rate for items",
             "counter" : "curr_items",
             "type" : "python",
@@ -282,9 +252,10 @@ ClusterCapsule = [
         },
      ]
     },
-    {"name" : "Average Document Size",
+    {"name" : "AverageDocumentSize",
      "ingredients" : [
         {
+            "name" : "averageDocumentSize",
             "description" : "Average Document Size",
             "type" : "python",
             "code" : "AvgItemSize",
@@ -292,23 +263,28 @@ ClusterCapsule = [
         },
      ]
     },
-    {"name" : "VBucket number",
+    {"name" : "VBucketNumber",
      "ingredients" : [
         {
-            "description" : "Active VBucket number",
+            "name" : "activeVbucketNumber",
+            "description" : "Active VBucket number is less than expected",
             "counter" : "vb_active_num",
             "type" : "python",
             "scale" : "summary",
-            "code" : "NumVbuckt"
+            "code" : "NumVbuckt",
+            "threshold" : 1024,
         },
         {
-            "description" : "Replica VBucket number",
+            "name" : "replicaVBucketNumber",
+            "description" : "Replica VBucket number is less than expected",
             "counter" : "vb_replica_num",
             "type" : "python",
             "scale" : "summary",
-            "code" : "NumVbuckt"
+            "code" : "NumVbuckt",
+            "threshold" : 1024,
         },
-     ]
+     ],
+     "indicator" : True,
     },
 ]
 
