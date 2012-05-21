@@ -1,8 +1,8 @@
 
 buckets_summary = {}
 stats_summary = {
-    'vb_active_num' : {},
-    'vb_replica_num' : {},
+    #'vb_active_num' : {},
+    #'vb_replica_num' : {},
 }
 
 buckets = {}
@@ -15,6 +15,9 @@ stats = {
         'curr_items' : {},
         'vb_replica_curr_items' : {},
         'curr_connections' : {},
+        'vb_active_queue_drain' : {},
+        'vb_replica_queue_drain' : {},
+        'disk_write_queue' : {},
     }, 
     "hour" : {
         'disk_write_queue' : {},
@@ -23,6 +26,9 @@ stats = {
         'ep_oom_errors' : {},
         'ep_tmp_oom_errors' : {},
         'ep_overhead' : {},
+        'vb_active_num' : {},
+        'vb_replica_num' : {},
+        "mem_used" : {},
     }, 
     "day" : {
         'curr_items' : {},

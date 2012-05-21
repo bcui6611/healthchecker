@@ -103,16 +103,40 @@ class CacheMissRatio:
             samplesCount = values["samplesCount"]
             trend = []
             total = 0
+            data = []
             for node, vals in nodeStats.iteritems():
                 a, b = util.linreg(timestamps, vals)
                 value = a * timestamps[-1] + b
                 total += value
                 trend.append((node, util.pretty_float(value)))
+                data.append(value)
             total /= len(nodeStats)
             trend.append(("total", util.pretty_float(total)))
+            trend.append(("variance", util.two_pass_variance(data)))
             cluster += total
             result[bucket] = trend
         result["cluster"] = util.pretty_float(cluster / len(stats_buffer.buckets))
+        return result
+
+class MemUsed:
+    def run(self, accessor):
+        result = {}
+        cluster = 0
+        for bucket, stats_info in stats_buffer.buckets.iteritems():
+            values = stats_info[accessor["scale"]][accessor["counter"]]
+            timestamps = values["timestamp"]
+            timestamps = [x - timestamps[0] for x in timestamps]
+            nodeStats = values["nodeStats"]
+            samplesCount = values["samplesCount"]
+            trend = []
+            total = 0
+            data = []
+            for node, vals in nodeStats.iteritems():
+                avg = sum(vals) / samplesCount
+                trend.append((node, util.pretty_float(avg)))
+                data.append(avg)
+            trend.append(("variance", util.two_pass_variance(data)))
+            result[bucket] = trend
         return result
 
 class ItemGrowth:
@@ -144,10 +168,15 @@ class AvgItemSize:
 class NumVbuckt:
     def run(self, accessor):
         result = {}
-        for bucket, stats_info in stats_buffer.buckets_summary.iteritems():
-            total, values = stats_buffer.retrieveSummaryStats(bucket, accessor["counter"])
-            if values[-1] < accessor["threshold"]:
-                result[bucket] = values[-1]
+        for bucket, stats_info in stats_buffer.buckets.iteritems():
+            num_error = []
+            values = stats_info[accessor["scale"]][accessor["counter"]]
+            nodeStats = values["nodeStats"]
+            for node, vals in nodeStats.iteritems():
+                if vals[-1] < accessor["threshold"]:
+                    num_error.append({"node":node, "value":vals[-1]})
+            if len(num_error) > 0:
+                result[bucket] = {"error" : num_error}
         return result
 
 ClusterCapsule = [
@@ -198,6 +227,7 @@ ClusterCapsule = [
      "perNode" : True,
      "perBucket" : True,
      "indicator" : False,
+     "nodeDisparate" : True,
     },
     {"name" : "DGM",
      "ingredients" : [
@@ -270,7 +300,7 @@ ClusterCapsule = [
             "description" : "Active VBucket number is less than expected",
             "counter" : "vb_active_num",
             "type" : "python",
-            "scale" : "summary",
+            "scale" : "hour",
             "code" : "NumVbuckt",
             "threshold" : 1024,
         },
@@ -279,12 +309,26 @@ ClusterCapsule = [
             "description" : "Replica VBucket number is less than expected",
             "counter" : "vb_replica_num",
             "type" : "python",
-            "scale" : "summary",
+            "scale" : "hour",
             "code" : "NumVbuckt",
             "threshold" : 1024,
         },
      ],
      "indicator" : True,
+    },
+    {"name" : "MemoryUsage",
+     "ingredients" : [
+        {
+            "name" : "memoryUsage",
+            "description" : "Check if memory usage and/or fragmentaion",
+            "type" : "python",
+            "counter" : "mem_used",
+            "scale" : "hour",
+            "code" : "MemUsed",
+        },
+     ],
+     "perNode" : True,
+     "nodeDisparate" : True,
     },
 ]
 

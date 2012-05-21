@@ -98,11 +98,18 @@ class AvgItemSize:
 
 class NumVbuckt:
     def run(self, accessor):
-        trend = []
-        for bucket, stats_info in stats_buffer.buckets_summary.iteritems():
+        result = {}
+        for bucket, stats_info in stats_buffer.buckets.iteritems():
+            num_error = []
             total, values = stats_buffer.retrieveSummaryStats(bucket, accessor["counter"])
-            trend.append((bucket, values[-1]))
-        return trend
+            values = stats_info[accessor["scale"]][accessor["counter"]]
+            nodeStats = values["nodeStats"]
+            for node, vals in nodeStats.iteritems():
+                if vals[-1] < accessor["threshold"]:
+                    num_error.append({"node":node, "value":vals[-1]})
+            if len(num_error) > 0:
+                result[bucket] = {"error" : num_error}
+        return result
 
 BucketCapsule = [
     {"name" : "bucketList",
@@ -178,14 +185,14 @@ BucketCapsule = [
             "description" : "Active VBucket number",
             "counter" : "vb_active_num",
             "type" : "python",
-            "scale" : "minute",
+            "scale" : "hour",
             "code" : "NumVbuckt"
         },
         {
             "description" : "Replica VBucket number",
             "counter" : "vb_replica_num",
             "type" : "python",
-            "scale" : "minute",
+            "scale" : "hour",
             "code" : "NumVbuckt"
         },
      ]

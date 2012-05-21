@@ -25,6 +25,25 @@ def linreg(X, Y):
         a, b = (Sxy * N - Sy * Sx)/det, (Sxx * Sy - Sx * Sxy)/det
         return a, b
 
+def two_pass_variance(data):
+    n    = 0
+    sum1 = 0
+    sum2 = 0
+ 
+    for x in data:
+        n    = n + 1
+        sum1 = sum1 + x
+ 
+    mean = sum1/n
+ 
+    for x in data:
+        sum2 = sum2 + (x - mean)*(x - mean)
+    if n <= 1:
+        return 0
+
+    variance = sum2/(n - 1)
+    return variance
+
 def pretty_float(number, precision=2):
     return '%.*f' % (precision, number)
 

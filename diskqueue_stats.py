@@ -9,7 +9,7 @@ class AvgDiskQueue:
         for bucket, stats_info in stats_buffer.buckets.iteritems():
             #print bucket, stats_info
             disk_queue_avg_error = []
-            dsik_queue_avg_warn = []
+            disk_queue_avg_warn = []
             values = stats_info[accessor["scale"]][accessor["counter"]]
             nodeStats = values["nodeStats"]
             samplesCount = values["samplesCount"]
@@ -18,10 +18,10 @@ class AvgDiskQueue:
                 if avg > accessor["threshold"]["high"]:
                     disk_queue_avg_error.append({"node":node, "level":"red", "value":avg})
                 elif avg > accessor["threshold"]["low"]:
-                    dsik_queue_avg_warn.append({"node":node, "level":"yellow", "value":avg})
+                    disk_queue_avg_warn.append({"node":node, "level":"yellow", "value":avg})
             if len(disk_queue_avg_error) > 0:
                 result[bucket] = {"error" : disk_queue_avg_error}
-            if len(dsik_queue_avg_warn) > 0:
+            if len(disk_queue_avg_warn) > 0:
                 result[bucket] = {"warn" : disk_queue_avg_warn}
         return result
 
@@ -69,6 +69,27 @@ class TapQueueTrend:
                 result[bucket] = {"error" : trend_error}
             if len(trend_warn) > 0:
                 result[bucket] = {"warn" : trend_warn}
+        return result
+
+class DiskQueueDrainingRate:
+    def run(self, accessor):
+        result = {}
+        for bucket, stats_info in stats_buffer.buckets.iteritems():
+            #print bucket, stats_info
+            disk_queue_avg_error = []
+            disk_queue_avg_warn = []
+            drain_values = stats_info[accessor["scale"]][accessor["counter"][0]]
+            len_values = stats_info[accessor["scale"]][accessor["counter"][1]]
+            nodeStats = drain_values["nodeStats"]
+            samplesCount = drain_values["samplesCount"]
+            for node, vals in nodeStats.iteritems():
+                avg = sum(vals) / samplesCount
+                disk_len_vals = len_values["nodeStats"][node]
+                len_avg = sum(disk_len_vals) / samplesCount
+                if avg < accessor["threshold"]["drainRate"] and len_avg > accessor["threshold"]["diskLength"]:
+                    disk_queue_avg_error.append({"node":node, "level":"red", "value":avg})
+            if len(disk_queue_avg_error) > 0:
+                result[bucket] = {"error" : disk_queue_avg_error}
         return result
 
 DiskQueueCapsule = [
@@ -119,6 +140,38 @@ DiskQueueCapsule = [
                 "high" : 0.2
             },
         }
+     ],
+     "indicator" : True,
+    },
+     {"name" : "DiskQueueDrainingAnalysis",
+     "description" : "",
+     "ingredients" : [
+        {
+            "name" : "activeDiskQueueDrainRate",
+            "description" : "Persistence severely behind - active disk queue draining rate is below threshold",
+            "counter" : ["vb_active_queue_drain", "disk_write_queue"],
+            "pernode" : True,
+            "scale" : "minute",
+            "type" : "python",
+            "code" : "DiskQueueDrainingRate",
+            "threshold" : {
+                "drainRate" : 0,
+                "diskLength" : 100000,
+            },
+        },     
+        {
+            "name" : "replicaDiskQueueDrainRate",
+            "description" : "Persistence severely behind - replica disk queue draining rate is below threshold",
+            "counter" : ["vb_replica_queue_drain", "disk_write_queue"],
+            "pernode" : True,
+            "scale" : "minute",
+            "type" : "python",
+            "code" : "DiskQueueDrainingRate",
+            "threshold" : {
+                "drainRate" : 0,
+                "diskLength" : 100000,
+            },
+        },
      ],
      "indicator" : True,
     },

@@ -32,6 +32,7 @@ bucket_node_symptoms = {}
 node_symptoms = {}
 indicator_error = {}
 indicator_warn = {}
+node_disparate = {}
 
 def  format_output(counter, result):
     if len(result) == 1:
@@ -88,12 +89,15 @@ class StatsAnalyzer:
                         for bucket, values in result.iteritems():
                             if bucket == "cluster":
                                 continue
-                            if values[-1][0] == "total":
-                                bucket_symptoms[bucket].append({"description" : counter["description"], "value" : values[-1][1]})
-                            for val in values[:-1]:
-                                if bucket_node_symptoms[bucket].has_key(val[0]) == False:
-                                    bucket_node_symptoms[bucket][val[0]] = []
-                                bucket_node_symptoms[bucket][val[0]].append({"description" : counter["description"], "value" : val[1]})
+                            for val in values:
+                                if val[0] == "variance":
+                                    continue
+                                elif val[0] == "total":
+                                    bucket_symptoms[bucket].append({"description" : counter["description"], "value" : values[-1][1]})
+                                else:
+                                    if bucket_node_symptoms[bucket].has_key(val[0]) == False:
+                                        bucket_node_symptoms[bucket][val[0]] = []
+                                    bucket_node_symptoms[bucket][val[0]].append({"description" : counter["description"], "value" : val[1]})
 
                     if pill.has_key("perNode") and pill["perNode"] :
                         node_symptoms[counter["name"]] = {"description" : counter["description"], "value":result}
@@ -108,6 +112,16 @@ class StatsAnalyzer:
                                 if values.has_key("warn"):
                                     indicator_warn[counter["name"]] = {"description" : counter["description"], "bucket": bucket, "value":values["warn"]}
 
+                    if pill.has_key("nodeDisparate") and pill["nodeDisparate"] :
+                        for bucket,values in result.iteritems():
+                            if bucket == "cluster":
+                                continue
+                            for val in values:
+                                if val[0] == "total":
+                                    continue;
+                                if val[0] == "variance" and val[1] != 0:
+                                    node_disparate[counter["name"]] = {"description" : counter["description"], "bucket": bucket, "value":values}
+                                    
         self.accessor.close()
         self.accessor.remove_db()
         
@@ -143,4 +157,6 @@ class StatsAnalyzer:
             util.pretty_print(indicator_error)
             util.pretty_print(indicator_warn)
         
+            print "Node disparate"
+            util.pretty_print(node_disparate)
         #print Template(file="report-htm.tmpl", searchList=[dict])
