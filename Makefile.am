@@ -1,6 +1,7 @@
 TMP_DIR = ./tmp
 TMP_VER = $(TMP_DIR)/version_num.tmp
 
+PROJECT_NAME = healthChecker
 CHEETAH_LIB = ./cheetah
 JSON_LIB = ./simplejson
 
@@ -22,11 +23,12 @@ pythonlib_DATA = \
     restclient.py \
     stats_buffer.py \
     usage.py \
-    util_cli.py
+    util_cli.py \
+    report-htm.tmpl
 
-pythonlib_SCRIPTS= healthChecker
+pythonlib_SCRIPTS= $(PROJECT_NAME)
 
-PYTHON_TOOLS= wrapper/healthChecker
+PYTHON_TOOLS= wrapper/$(PROJECT_NAME)
 
 ${PYTHON_TOOLS}: wrapper/wrapper
 	cp $< $@
@@ -46,12 +48,12 @@ install-data-hook:
 bdist:
 	test -d $(TMP_DIR) || mkdir $(TMP_DIR)
 	git describe | sed s/-/_/g > $(TMP_VER)
-	rm -f ./healthChecker_*.tar.gz
-	rm -rf $(TMP_DIR)/healthChecker
-	mkdir -p $(TMP_DIR)/healthChecker/simplejson
-	cp healthChecker *.py  $(TMP_DIR)/healthChecker
-	cp -rf $(CHEETAH_LIB) $(JSON_LIB) LICENSE $(TMP_DIR)/healthChecker
-	(cd $(TMP_DIR); tar cf - healthChecker) | gzip -9 > healtherChecker_`cat $(TMP_VER)`-`uname -s`.`uname -m`.tar.gz
+	rm -f ./$(PROJECT_NAME)_*.tar.gz
+	rm -rf $(TMP_DIR)/$(PROJECT_NAME)
+	mkdir -p $(TMP_DIR)/$(PROJECT_NAME)/simplejson
+	cp $(PROJECT_NAME) *.py  $(TMP_DIR)/$(PROJECT_NAME)
+	cp -rf $(CHEETAH_LIB) $(JSON_LIB) report-htm.tmpl LICENSE $(TMP_DIR)/$(PROJECT_NAME)
+	(cd $(TMP_DIR); tar cf - $(PROJECT_NAME)) | gzip -9 > healtherChecker_`cat $(TMP_VER)`-`uname -s`.`uname -m`.tar.gz
 	echo created healtherChecker_`cat $(TMP_VER)`-`uname -s`.`uname -m`.tar.gz
 	rm -rf $(TMP_DIR)
 
