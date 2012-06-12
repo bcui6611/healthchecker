@@ -4,9 +4,9 @@ default:
 
 pythonlibdir=$(libdir)/python
 
-pythonlib_SCRIPTS= cbworkloadgen
+pythonlib_SCRIPTS= healthChecker
 
-PYTHON_TOOLS= wrapper/cbworkloadgen
+PYTHON_TOOLS= wrapper/healthChecker
 
 ${PYTHON_TOOLS}: wrapper/wrapper
 	cp $< $@

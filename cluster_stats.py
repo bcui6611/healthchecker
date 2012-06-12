@@ -1,18 +1,22 @@
-import dbaccessor
 import stats_buffer
-import util
+import util_cli as util
 
-class ExecSQL:
-    def run(self, accessor, stmt):
-        result = accessor.execute(stmt)
-        return result[0]
+class BucketSummary:
+    def run(self, accessor):
+        return  stats_buffer.bucket_info
 
 class DGMRatio:
     def run(self, accessor):
-        hdd = accessor.execute("SELECT sum(usedbyData) FROM StorageInfo WHERE type='hdd'")
-        ram = accessor.execute("SELECT sum(usedbyData) FROM StorageInfo WHERE type='ram'")
-        if ram[0] > 0:
-            ratio = hdd[0] / ram[0]
+        result = []
+        hdd_total = 0
+        ram_total = 0
+        for node, nodeinfo in stats_buffer.nodes.iteritems():
+            if nodeinfo["StorageInfo"].has_key("hdd"):
+                hdd_total += nodeinfo['StorageInfo']['hdd']['usedByData']
+            if nodeinfo["StorageInfo"].has_key("ram"):
+                ram_total += nodeinfo['StorageInfo']['ram']['usedByData']
+        if ram_total > 0:
+            ratio = hdd_total / ram_total
         else:
             ratio = 0
         return ratio
@@ -26,6 +30,7 @@ class ARRatio:
                 "curr_items": [],
                 "vb_replica_curr_items": [],
             }
+            num_error = []
             for counter in accessor["counter"]:
                 values = stats_info[accessor["scale"]][counter]
                 nodeStats = values["nodeStats"]
@@ -39,8 +44,10 @@ class ARRatio:
                 if replica[1] == 0:
                     res.append((active[0], "No replica"))
                 else:
-                    ratio = 1.0 * active[1] / replica[1] 
+                    ratio = 1.0 * active[1] / replica[1]
                     res.append((active[0], util.pretty_float(ratio)))
+                    if ratio < accessor["threshold"]:
+                        num_error.append({"node":active[0], "value": ratio})
                 active_total += active[1]
                 replica_total += replica[1]
             if replica_total == 0:
@@ -49,12 +56,16 @@ class ARRatio:
                 ratio = active_total * 1.0 / replica_total
                 cluster += ratio
                 res.append(("total", util.pretty_float(ratio)))
+                if ratio != accessor["threshold"]:
+                    num_error.append({"node":"total", "value": ratio})
+            if len(num_error) > 0:
+                res.append(("error", num_error))
             result[bucket] = res
         result["cluster"] = util.pretty_float(cluster / len(stats_buffer.buckets))
         return result
 
 class OpsRatio:
-    def run(self, accessor):        
+    def run(self, accessor):
         result = {}
         for bucket, stats_info in stats_buffer.buckets.iteritems():
             ops_avg = {
@@ -82,11 +93,11 @@ class OpsRatio:
                     write_total += write_ratio
                     del_ratio = delete[1] * 100 / count
                     del_total += del_ratio
-                    res.append((read[0], "{0}:{1}:{2}".format(read_ratio, write_ratio, del_ratio)))
+                    res.append((read[0], "{0}:{1}:{2}".format(int(read_ratio+.5), int(write_ratio+.5), int(del_ratio+.5))))
             read_total /= len(ops_avg['cmd_get'])
             write_total /= len(ops_avg['cmd_set'])
             del_total /= len(ops_avg['delete_hits'])
-            res.append(("total", "{0}:{1}:{2}".format(read_total, write_total, del_total)))
+            res.append(("total", "{0}:{1}:{2}".format(int(read_total+.5), int(write_total+.5), int(del_total+.5))))
             result[bucket] = res
 
         return result
@@ -104,18 +115,24 @@ class CacheMissRatio:
             trend = []
             total = 0
             data = []
+            num_error = []
             for node, vals in nodeStats.iteritems():
-                a, b = util.linreg(timestamps, vals)
-                value = a * timestamps[-1] + b
+                #a, b = util.linreg(timestamps, vals)
+                value = sum(vals) / samplesCount
                 total += value
+                if value > accessor["threshold"]:
+                    num_error.append({"node":node, "value":value})
                 trend.append((node, util.pretty_float(value)))
                 data.append(value)
             total /= len(nodeStats)
             trend.append(("total", util.pretty_float(total)))
             trend.append(("variance", util.two_pass_variance(data)))
+            if len(num_error) > 0:
+                trend.append(("error", num_error))
             cluster += total
             result[bucket] = trend
-        result["cluster"] = util.pretty_float(cluster / len(stats_buffer.buckets))
+        if len(stats_buffer.buckets) > 0:
+            result["cluster"] = util.pretty_float(cluster / len(stats_buffer.buckets))
         return result
 
 class MemUsed:
@@ -133,8 +150,9 @@ class MemUsed:
             data = []
             for node, vals in nodeStats.iteritems():
                 avg = sum(vals) / samplesCount
-                trend.append((node, util.pretty_float(avg)))
+                trend.append((node, util.size_label(avg)))
                 data.append(avg)
+            #print data
             trend.append(("variance", util.two_pass_variance(data)))
             result[bucket] = trend
         return result
@@ -142,6 +160,8 @@ class MemUsed:
 class ItemGrowth:
     def run(self, accessor):
         result = {}
+        start_cluster = 0
+        end_cluster = 0
         for bucket, stats_info in stats_buffer.buckets.iteritems():
             trend = []
             values = stats_info[accessor["scale"]][accessor["counter"]]
@@ -155,15 +175,16 @@ class ItemGrowth:
                    trend.append((node, 0))
                 else:
                     start_val = b
+                    start_cluster += b
                     end_val = a * timestamps[-1] + b
+                    end_cluster += end_val
                     rate = (end_val * 1.0 / b - 1.0) * 100
-                    trend.append((node, util.pretty_float(rate)))
+                    trend.append((node, util.pretty_float(rate) + "%"))
             result[bucket] = trend
+        if len(stats_buffer.buckets) > 0:
+            rate = (end_cluster * 1.0 / start_cluster - 1.0) * 100
+            result["cluster"] = util.pretty_float(rate) + "%"
         return result
-
-class AvgItemSize:
-    def run(self, accessor):
-        return 0
 
 class NumVbuckt:
     def run(self, accessor):
@@ -174,9 +195,89 @@ class NumVbuckt:
             nodeStats = values["nodeStats"]
             for node, vals in nodeStats.iteritems():
                 if vals[-1] < accessor["threshold"]:
-                    num_error.append({"node":node, "value":vals[-1]})
+                    num_error.append({"node":node, "value": int(vals[-1])})
             if len(num_error) > 0:
                 result[bucket] = {"error" : num_error}
+        return result
+
+class RebalanceStuck:
+    def run(self, accessor):
+        result = {}
+        for bucket, bucket_stats in stats_buffer.node_stats.iteritems():
+            num_error = []
+            for node, stats_info in bucket_stats.iteritems():
+                for key, value in stats_info.iteritems():
+                    if key.find(accessor["counter"]) >= 0:
+                        if accessor.has_key("threshold"):
+                            if int(value) > accessor["threshold"]:
+                                num_error.append({"node":node, "value": (key, value)})
+                        else:
+                            num_error.append({"node":node, "value": (key, value)})
+            if len(num_error) > 0:
+                result[bucket] = {"error" : num_error}
+        return result
+
+class MemoryFramentation:
+    def run(self, accessor):
+        result = {}
+        for bucket, bucket_stats in stats_buffer.node_stats.iteritems():
+            num_error = []
+            for node, stats_info in bucket_stats.iteritems():
+                for key, value in stats_info.iteritems():
+                    if key.find(accessor["counter"]) >= 0:
+                        if accessor.has_key("threshold"):
+                            if int(value) > accessor["threshold"]:
+                                if accessor.has_key("unit"):
+                                    if accessor["unit"] == "time":
+                                        num_error.append({"node":node, "value": (key, util.time_label(value))})
+                                    elif accessor["unit"] == "size":
+                                        num_error.append({"node":node, "value": (key, util.size_label(value))})
+                                    else:
+                                        num_error.append({"node":node, "value": (key, value)})
+                                else:
+                                    num_error.append({"node":node, "value": (key, value)})
+            if len(num_error) > 0:
+                result[bucket] = {"error" : num_error}
+        return result
+
+class EPEnginePerformance:
+    def run(self, accessor):
+        result = {}
+        for bucket, bucket_stats in stats_buffer.node_stats.iteritems():
+            num_error = []
+            for node, stats_info in bucket_stats.iteritems():
+                for key, value in stats_info.iteritems():
+                    if key.find(accessor["counter"]) >= 0:
+                        if accessor.has_key("threshold"):
+                            if accessor["counter"] == "flusherState" and value != accessor["threshold"]:
+                                num_error.append({"node":node, "value": (key, value)})
+                            elif accessor["counter"] == "flusherCompleted" and value == accessor["threshold"]:
+                                num_error.append({"node":node, "value": (key, value)})
+                            else:
+                                if value > accessor["threshold"]:
+                                     num_error.append({"node":node, "value": (key, value)})
+            if len(num_error) > 0:
+                result[bucket] = {"error" : num_error}
+        return result
+
+class TotalDataSize:
+    def run(self, accessor):
+        result = []
+        total = 0
+        for node, nodeinfo in stats_buffer.nodes.iteritems():
+            if nodeinfo["StorageInfo"].has_key("hdd"):
+                total += nodeinfo['StorageInfo']['hdd']['usedByData']
+        result.append(util.size_label(total))
+        return result
+
+class AvailableDiskSpace:
+    def run(self, accessor):
+        result = []
+        total = 0
+        for node, nodeinfo in stats_buffer.nodes.iteritems():
+            if nodeinfo["StorageInfo"].has_key("hdd"):
+                total += nodeinfo['StorageInfo']['hdd']['free']
+        result.append(util.size_label(total))
         return result
 
 ClusterCapsule = [
@@ -185,10 +286,7 @@ ClusterCapsule = [
         {
             "name" : "totalDataSize",
             "description" : "Total Data Size across cluster",
-            "type" : "SQL",
-            "stmt" : "SELECT sum(usedbyData) FROM StorageInfo WHERE type='hdd'",
-            "code" : "ExecSQL",
-            "unit" : "GB",
+            "code" : "TotalDataSize",
         }
      ],
      "clusterwise" : True,
@@ -200,10 +298,7 @@ ClusterCapsule = [
         {
             "name" : "availableDiskSpace",
             "description" : "Available disk space",
-            "type" : "SQL",
-            "stmt" : "SELECT sum(free) FROM StorageInfo WHERE type='hdd'",
-            "code" : "ExecSQL",
-            "unit" : "GB",
+            "code" : "AvailableDiskSpace",
         }
      ],
      "clusterwise" : True,
@@ -216,17 +311,19 @@ ClusterCapsule = [
             "name" : "cacheMissRatio",
             "description" : "Cache miss ratio",
             "counter" : "ep_cache_miss_rate",
-            "type" : "python",
             "scale" : "hour",
             "code" : "CacheMissRatio",
-            "unit" : "percentage",
             "threshold" : 2,
         },
      ],
      "clusterwise" : True,
      "perNode" : True,
      "perBucket" : True,
-     "indicator" : False,
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     },
      "nodeDisparate" : True,
     },
     {"name" : "DGM",
@@ -234,7 +331,6 @@ ClusterCapsule = [
         {
             "name" : "dgm",
             "description" : "Disk to Memory Ratio",
-            "type" : "pythonSQL",
             "code" : "DGMRatio"
         },
      ],
@@ -246,28 +342,33 @@ ClusterCapsule = [
      "ingredients" : [
         {
             "name" : "activeReplicaResidencyRatio",
-            "description" : "Active and Replica Residentcy Ratio",
-            "type" : "python",
+            "description" : "Active and Replica Resident Ratio",
             "counter" : ["curr_items", "vb_replica_curr_items"],
             "scale" : "minute",
             "code" : "ARRatio",
+            "threshold" : 1,
         },
      ],
      "clusterwise" : True,
      "perNode" : True,
      "perBucket" : True,
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     },
     },
     {"name" : "OPSPerformance",
      "ingredients" : [
         {
             "name" : "opsPerformance",
             "description" : "Read/Write/Delete ops ratio",
-            "type" : "python",
             "scale" : "minute",
             "counter" : ["cmd_get", "cmd_set", "delete_hits"],
             "code" : "OpsRatio",
         },
-     ]
+     ],
+     "perBucket" : True,
     },
     {"name" : "GrowthRate",
      "ingredients" : [
@@ -275,23 +376,12 @@ ClusterCapsule = [
             "name" : "dataGrowthRateForItems",
             "description" : "Data Growth rate for items",
             "counter" : "curr_items",
-            "type" : "python",
             "scale" : "day",
             "code" : "ItemGrowth",
             "unit" : "percentage",
         },
-     ]
-    },
-    {"name" : "AverageDocumentSize",
-     "ingredients" : [
-        {
-            "name" : "averageDocumentSize",
-            "description" : "Average Document Size",
-            "type" : "python",
-            "code" : "AvgItemSize",
-            "unit" : "KB",
-        },
-     ]
+     ],
+     "clusterwise" : True,
     },
     {"name" : "VBucketNumber",
      "ingredients" : [
@@ -299,7 +389,6 @@ ClusterCapsule = [
             "name" : "activeVbucketNumber",
             "description" : "Active VBucket number is less than expected",
             "counter" : "vb_active_num",
-            "type" : "python",
             "scale" : "hour",
             "code" : "NumVbuckt",
             "threshold" : 1024,
@@ -308,28 +397,136 @@ ClusterCapsule = [
             "name" : "replicaVBucketNumber",
             "description" : "Replica VBucket number is less than expected",
             "counter" : "vb_replica_num",
-            "type" : "python",
             "scale" : "hour",
             "code" : "NumVbuckt",
             "threshold" : 1024,
         },
      ],
-     "indicator" : True,
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     },
     },
     {"name" : "MemoryUsage",
      "ingredients" : [
         {
             "name" : "memoryUsage",
-            "description" : "Check if memory usage and/or fragmentaion",
-            "type" : "python",
+            "description" : "Check memory usage",
             "counter" : "mem_used",
             "scale" : "hour",
             "code" : "MemUsed",
         },
      ],
-     "perNode" : True,
      "nodeDisparate" : True,
     },
+    {"name" : "RebalancePerformance",
+     "ingredients" : [
+        {
+            "name" : "rebalanceStuck",
+            "description" : "Check if rebalance is stuck",
+            "counter" : "idle",
+            "code" : "RebalanceStuck",
+        },
+        {
+            "name" : "highBackfillRemaing",
+            "description" : "Tap queue backfilll remaining is too high",
+            "counter" : "ep_tap_queue_backfillremaining",
+            "code" : "RebalanceStuck",
+            "threshold" : 1000,
+        },
+     ],
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     }
+    },
+    {"name" : "MemoryFragmentation",
+     "ingredients" : [
+        {
+            "name" : "totalFragmentation",
+            "description" : "Total memory fragmentation",
+            "counter" : "total_fragmentation_bytes",
+            "code" : "MemoryFramentation",
+            "unit" : "size",
+            "threshold" : 1073741824,  # 1GB
+        },
+        {
+            "name" : "diskDelete",
+            "description" : "Averge disk delete time",
+            "counter" : "disk_del",
+            "code" : "MemoryFramentation",
+            "unit" : "time",
+            "threshold" : 1000     #1ms
+        },
+        {
+            "name" : "diskUpdate",
+            "description" : "Averge disk update time",
+            "counter" : "disk_update",
+            "code" : "MemoryFramentation",
+            "unit" : "time",
+            "threshold" : 1000     #1ms
+        },
+        {
+            "name" : "diskInsert",
+            "description" : "Averge disk insert time",
+            "type" : "python",
+            "counter" : "disk_insert",
+            "code" : "MemoryFramentation",
+            "unit" : "time",
+            "threshold" : 1000     #1ms
+        },
+        {
+            "name" : "diskCommit",
+            "description" : "Averge disk commit time",
+            "counter" : "disk_commit",
+            "code" : "MemoryFramentation",
+            "unit" : "time",
+            "threshold" : 5000000     #10s
+        },
+     ],
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     },
+    },
+    {"name" : "EPEnginePerformance",
+     "ingredients" : [
+        {
+            "name" : "flusherState",
+            "description" : "Engine flusher state",
+            "counter" : "ep_flusher_state",
+            "code" : "EPEnginePerformance",
+            "threshold" : "running",
+        },
+        {
+            "name" : "flusherCompleted",
+            "description" : "Flusher completed",
+            "counter" : "ep_flusher_num_completed",
+            "code" : "EPEnginePerformance",
+            "threshold" : 0
+        },
+        {
+            "name" : "avgItemLoadTime",
+            "description" : "Average item loaded time",
+            "counter" : "ep_bg_load_avg",
+            "code" : "EPEnginePerformance",
+            "threshold" : 100,
+        },
+        {
+            "name" : "avgItemWaitTime",
+            "description" : "Averge item waited time",
+            "counter" : "ep_bg_wait_avg",
+            "code" : "EPEnginePerformance",
+            "threshold" : 100
+        },
+     ],
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     },
+    },
 ]
-
-

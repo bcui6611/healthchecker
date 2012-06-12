@@ -130,27 +130,41 @@ body {margin-top: 0px;margin-left: 0px;}
 <P class="p3"><FONT class="ft4">Section 1 - Couchbase &#8211; Alerts</FONT></P>
 <P class="p4"><FONT class="ft5">Cluster-wide metrics</FONT></P>
 #for $counter, $error_values in $indicator_error.iteritems():
-<P class="p0"><FONT class="ft2">1. </FONT><FONT class="ft3">$error_values["description"]</FONT></P>
+<P class="p0"><FONT class="ft2"> . </FONT><FONT class="ft3">$error_values["description"]</FONT></P>
 <TABLE cellpadding=0 cellspacing=0 class="t0">
 <TR class="tr0">
 	<TD class="td0">&#8226;</TD>
 	<TD class="td1"><FONT class="ft6">Symptom</FONT><FONT class="ft7">o</FONT></TD>
-	<TD class="td2"><FONT class="ft8">
+	<TD class="td2"><FONT class="ft8">&nbsp;</FONT></TD>
+</TR>
 #for $err_val in $error_values["value"]
-($err_val["node"], $err_val["value"]) 
-#end for
-    </FONT></TD>
+<TR class="tr1">
+	<TD class="td0">&nbsp;</TD>
+	<TD class="td3"><FONT class="ft9">Node:</FONT></TD>
+	<TD class="td4">$err_val["node"]</TD>
 </TR>
 <TR class="tr1">
 	<TD class="td0">&nbsp;</TD>
-	<TD class="td3"><FONT class="ft9">Disk write queue has reached</FONT></TD>
-	<TD class="td4">&nbsp;</TD>
+	<TD class="td3"><FONT class="ft9">Value:</FONT></TD>
+	<TD class="td4">$err_val["value"]</TD>
+</TR>
+#end for
+<TR class="tr0">
+	<TD class="td0">&#8226;</TD>
+	<TD class="td1"><FONT class="ft6">Causes -</FONT></TD>
+	<TD class="td2"><FONT class="ft9">$error_values["cause"]</FONT></TD>
+</TR>
+<TR class="tr0">
+	<TD class="td0">&#8226;</TD>
+	<TD class="td1"><FONT class="ft6">Impact -</FONT></TD>
+	<TD class="td2"><FONT class="ft9">$error_values["impact"]</FONT></TD>
+</TR>
+<TR class="tr0">
+	<TD class="td0">&#8226;</TD>
+	<TD class="td1"><FONT class="ft6">Action -</FONT></TD>
+	<TD class="td2"><FONT class="ft9">$error_values["action"]</FONT></TD>
 </TR>
 </TABLE>
-<P class="p5"><FONT class="ft10">o</FONT><FONT class="ft11">Drain rate has slowed down to</FONT></P>
-<P class="p6"><FONT class="ft12">&#8226;</FONT><FONT class="ft13">Causes - </FONT></P>
-<P class="p6"><FONT class="ft12">&#8226;</FONT><FONT class="ft13">Impact - </FONT></P>
-<P class="p6"><FONT class="ft12">&#8226;</FONT><FONT class="ft13">Action -</FONT></P>
 #end for
 <P class="p4"><FONT class="ft4">Section 2 - Couchbase Cluster Overview</FONT></P>
 <P class="p7"><FONT class="ft14">&#8226; </FONT><FONT class="ft3">Node list</FONT></P>
@@ -168,8 +182,10 @@ body {margin-top: 0px;margin-left: 0px;}
 </TR>
 #end for
 </TABLE>
-<P class="p8"><FONT class="ft16">&#8226; </FONT><FONT class="ft17">Total number of nodes in the cluster: $node_list["numNodes"]["value"] </FONT><FONT class="ft18">o </FONT><FONT class="ft17">Number of nodes down: $node_list["numDownNodes"]["value"]</FONT></P>
-<P class="p9"><FONT class="ft19">o </FONT><FONT class="ft20">Number of nodes warming up: $node_list["numWarmupNodes"]["value"] </FONT><FONT class="ft19">o </FONT><FONT class="ft20">Number of nodes failed over: $node_list["numFailedOverNodes"]["value"]</FONT></P>
+<P class="p8"><FONT class="ft16">&#8226; </FONT><FONT class="ft17">Total number of nodes in the cluster: $node_list["numNodes"]["value"] </FONT></P>
+<P class="p8"><FONT class="ft16">&#8226; </FONT><FONT class="ft17">Number of down nodes: $node_list["numDownNodes"]["value"] </FONT></P>
+<P class="p8"><FONT class="ft16">&#8226; </FONT><FONT class="ft17">Number of warmingup nodes: $node_list["numWarmupNodes"]["value"] </FONT></P>
+<P class="p8"><FONT class="ft16">&#8226; </FONT><FONT class="ft17">Number of failed over nodes: $node_list["numFailedOverNodes"]["value"] </FONT></P>
 </DIV>
 <DIV id="page_2">
 
@@ -205,7 +221,11 @@ body {margin-top: 0px;margin-left: 0px;}
 	<TD class="td24">&nbsp;</TD>
 </TR>
 <TR class="tr2">
+#if $bucket_node_status[$bucket].has_key($node)
+	<TD class="td26"><FONT class="ft8">Status &#8211; Error</FONT></TD>
+#else
 	<TD class="td26"><FONT class="ft8">Status &#8211; OK</FONT></TD>
+#end if
 	<TD class="td24">&nbsp;</TD>
 </TR>
 <TR class="tr5">
@@ -224,15 +244,41 @@ body {margin-top: 0px;margin-left: 0px;}
 <P class="p13"><FONT class="ft4">Section 3 - Couchbase &#8211; Warning Indicators</FONT></P>
 <P class="p14"><FONT class="ft5">Cluster-wide metrics</FONT></P>
 #for $counter, $warn_values in $indicator_warn.iteritems():
-<P class="p15"><FONT class="ft21">1.</FONT><FONT class="ft22">$warn_values["description"]</FONT></P>
-<P class="p16"><FONT class="ft12">&#8226;</FONT><FONT class="ft13">Symptom -
+<P class="p0"><FONT class="ft2"> . </FONT><FONT class="ft3">$warn_values["description"]</FONT></P>
+<TABLE cellpadding=0 cellspacing=0 class="t0">
+<TR class="tr0">
+	<TD class="td0">&#8226;</TD>
+	<TD class="td1"><FONT class="ft6">Symptom</FONT><FONT class="ft7">o</FONT></TD>
+	<TD class="td2"><FONT class="ft8">&nbsp;</FONT></TD>
+</TR>
 #for $warn_val in $warn_values["value"]
-($warn_val["node"], $warn_val["value"]) 
+<TR class="tr1">
+	<TD class="td0">&nbsp;</TD>
+	<TD class="td3"><FONT class="ft9">Node:</FONT></TD>
+	<TD class="td4">$warn_val["node"]</TD>
+</TR>
+<TR class="tr1">
+	<TD class="td0">&nbsp;</TD>
+	<TD class="td3"><FONT class="ft9">Value:</FONT></TD>
+	<TD class="td4">$warn_val["value"]</TD>
+</TR>
 #end for
-</FONT></P>
-<P class="p17"><FONT class="ft12">&#8226;</FONT><FONT class="ft13">Cause -</FONT></P>
-<P class="p18"><FONT class="ft23">&#8226;</FONT><FONT class="ft24">Impact - </FONT></P>
-<P class="p17"><FONT class="ft12">&#8226;</FONT><FONT class="ft13">Action -</FONT></P>
+<TR class="tr0">
+	<TD class="td0">&#8226;</TD>
+	<TD class="td1"><FONT class="ft6">Causes -</FONT></TD>
+	<TD class="td2"><FONT class="ft9">$warn_values["cause"]</FONT></TD>
+</TR>
+<TR class="tr0">
+	<TD class="td0">&#8226;</TD>
+	<TD class="td1"><FONT class="ft6">Impact -</FONT></TD>
+	<TD class="td2"><FONT class="ft9">$warn_values["impact"]</FONT></TD>
+</TR>
+<TR class="tr0">
+	<TD class="td0">&#8226;</TD>
+	<TD class="td1"><FONT class="ft6">Action -</FONT></TD>
+	<TD class="td2"><FONT class="ft9">$warn_values["action"]</FONT></TD>
+</TR>
+</TABLE>
 #end for
 </DIV>
 </body>

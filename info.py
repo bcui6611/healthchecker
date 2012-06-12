@@ -21,6 +21,7 @@ class Info:
         for (o, a) in opts:
             if o == '-d' or o == '--debug':
                 self.debug = True
+
         rest = restclient.RestClient(server, port, {'debug':self.debug})
         opts = {'error_msg': 'server-info error'}
 
@@ -32,5 +33,10 @@ class Info:
         for x in ['license', 'licenseValid', 'licenseValidUntil']:
             if x in json:
                 del(json[x])
-        #print simplejson.dumps(json, sort_keys=True, indent=2)
-        return json
+        if cmd == 'get-server-info':
+            return json
+        elif cmd == 'server-eshell':
+            p = subprocess.call(['erl','-name','ctl@127.0.0.1',
+                '-setcookie',json['otpCookie'],'-hidden','-remsh',json['otpNode']])
+        else:
+            print simplejson.dumps(json, sort_keys=True, indent=2)

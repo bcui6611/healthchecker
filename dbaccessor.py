@@ -41,14 +41,6 @@ class DbAccesor:
         self.cursor.execute(""" CREATE UNIQUE INDEX IF NOT EXISTS server_idx on 
                 ServerNode(host, port, master) """)
 
-        self.cursor.execute(""" CREATE TABLE IF NOT EXISTS DiskInfo (
-                diskInfoId INTEGER PRIMARY KEY,
-                path TEXT NOT NULL,
-                sizeBytes INTEGER,
-                usagePercent INTEGER,
-                serverId INTEGER,
-                FOREIGN KEY(serverId) REFERENCES ServerNode(serverId))""") 
-
         self.cursor.execute(""" CREATE TABLE IF NOT EXISTS MemoryInfo (
                 memoryInfoId INTEGER PRIMARY KEY,
                 allocated INTEGER,
@@ -163,7 +155,7 @@ class DbAccesor:
                         hdd['usedByData'],
                         nodeId));
             ram = nodeInfo['storageTotals']['ram']
-            if hdd is not None:
+            if ram is not None:
                 self.cursor.execute(sqlstmt.format('ram',
                         hdd['free'],
                         hdd['quotaTotal'],

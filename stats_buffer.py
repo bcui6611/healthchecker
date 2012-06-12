@@ -1,10 +1,10 @@
+nodes = {}
+node_stats = {}
 
 buckets_summary = {}
-stats_summary = {
-    #'vb_active_num' : {},
-    #'vb_replica_num' : {},
-}
+stats_summary = {}
 
+bucket_info = {}
 buckets = {}
 stats = {
     "minute" : {
@@ -18,28 +18,18 @@ stats = {
         'vb_active_queue_drain' : {},
         'vb_replica_queue_drain' : {},
         'disk_write_queue' : {},
-    }, 
+    },
     "hour" : {
         'disk_write_queue' : {},
         'ep_cache_miss_rate' : {},
         'ep_tap_total_total_backlog_size' : { },
         'ep_oom_errors' : {},
         'ep_tmp_oom_errors' : {},
-        'ep_overhead' : {},
         'vb_active_num' : {},
         'vb_replica_num' : {},
         "mem_used" : {},
-    }, 
+    },
     "day" : {
         'curr_items' : {},
     },
 }
-
-def retrieveSummaryStats(bucket, cmd):
-    samples = buckets_summary[bucket]["op"]["samples"]
-    for sample_key in samples.keys():
-        if cmd == sample_key:
-            total_samples = buckets_summary[bucket]["op"]["samplesCount"]
-            return (total_samples, samples[cmd])
-    print "Unknown stats:", cmd
-    return (0, [])

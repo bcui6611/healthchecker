@@ -1,7 +1,5 @@
-import dbaccessor
 import stats_buffer
-import util
-counter_name = 'disk_write_queue'
+import util_cli as util
 
 class AvgDiskQueue:
     def run(self, accessor):
@@ -102,20 +100,18 @@ DiskQueueCapsule = [
             "counter" : "disk_write_queue",
             "pernode" : True,
             "scale" : "minute",
-            "type" : "python",
             "code" : "AvgDiskQueue",
             "threshold" : {
                 "low" : 50000000,
                 "high" : 1000000000
             },
-        },     
+        },
         {
             "name" : "diskQueueTrend",
             "description" : "Persistence severely behind - disk write queue continues growing",
             "counter" : "disk_write_queue",
             "pernode" : True,
             "scale" : "hour",
-            "type" : "python",
             "code" : "DiskQueueTrend",
             "threshold" : {
                 "low" : 0,
@@ -123,7 +119,11 @@ DiskQueueCapsule = [
             },
         },
      ],
-     "indicator" : True,
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     },
     },
     {"name" : "ReplicationTrend",
      "ingredients" : [
@@ -133,7 +133,6 @@ DiskQueueCapsule = [
             "counter" : "ep_tap_total_total_backlog_size",
             "pernode" : True,
             "scale" : "hour",
-            "type" : "python",
             "code" : "TapQueueTrend",
             "threshold" : {
                 "low" : 0,
@@ -141,7 +140,11 @@ DiskQueueCapsule = [
             },
         }
      ],
-     "indicator" : True,
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     },
     },
      {"name" : "DiskQueueDrainingAnalysis",
      "description" : "",
@@ -152,20 +155,18 @@ DiskQueueCapsule = [
             "counter" : ["vb_active_queue_drain", "disk_write_queue"],
             "pernode" : True,
             "scale" : "minute",
-            "type" : "python",
             "code" : "DiskQueueDrainingRate",
             "threshold" : {
                 "drainRate" : 0,
                 "diskLength" : 100000,
             },
-        },     
+        },
         {
             "name" : "replicaDiskQueueDrainRate",
             "description" : "Persistence severely behind - replica disk queue draining rate is below threshold",
             "counter" : ["vb_replica_queue_drain", "disk_write_queue"],
             "pernode" : True,
             "scale" : "minute",
-            "type" : "python",
             "code" : "DiskQueueDrainingRate",
             "threshold" : {
                 "drainRate" : 0,
@@ -173,6 +174,10 @@ DiskQueueCapsule = [
             },
         },
      ],
-     "indicator" : True,
+     "indicator" : {
+        "cause" : "blah",
+        "impact" : "blah",
+        "action" : "blah",
+     }
     },
 ]
